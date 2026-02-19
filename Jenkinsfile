@@ -14,13 +14,6 @@ pipeline {
             }
         }
 
-        stage('Checkout Code') {
-            steps {
-                git branch: 'main',
-                    url: 'https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME.git'
-            }
-        }
-
         stage('Install Node.js') {
             steps {
                 sh '''

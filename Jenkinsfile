@@ -2,18 +2,36 @@ pipeline {
     agent any
 
     environment {
-        APP_NAME = "todo-app"
+        APP_NAME = "node-todo-app"
+        APP_PORT = "3000"
     }
 
     stages {
 
-        stage('Install NodeJS') {
+        stage('Clean Workspace') {
+            steps {
+                deleteDir()
+            }
+        }
+
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME.git'
+            }
+        }
+
+        stage('Install Node.js') {
             steps {
                 sh '''
-                echo "Installing NodeJS..."
+                sudo apt update -y
+                sudo apt install -y curl
+
                 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-                sudo apt-get update
-                sudo apt-get install -y nodejs
+                sudo apt install -y nodejs
+
+                node -v
+                npm -v
                 '''
             }
         }
@@ -21,16 +39,16 @@ pipeline {
         stage('Install PM2') {
             steps {
                 sh '''
-                echo "Installing PM2..."
                 sudo npm install -g pm2
+                pm2 -v
                 '''
             }
         }
 
-        stage('Stop Previous App') {
+        stage('Stop Old Application') {
             steps {
                 sh '''
-                pm2 delete $APP_NAME || true
+                pm2 delete ${APP_NAME} || true
                 '''
             }
         }
@@ -38,8 +56,9 @@ pipeline {
         stage('Start Application') {
             steps {
                 sh '''
-                pm2 start server.js --name $APP_NAME
+                pm2 start server.js --name ${APP_NAME}
                 pm2 save
+                pm2 startup systemd -u jenkins --hp /var/lib/jenkins
                 '''
             }
         }
@@ -47,8 +66,8 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh '''
-                sleep 3
                 pm2 list
+                curl http://localhost:${APP_PORT} || true
                 '''
             }
         }
@@ -56,10 +75,10 @@ pipeline {
 
     post {
         success {
-            echo "Deployment Successful"
+            echo "✅ Deployment Successful!"
         }
         failure {
-            echo "Deployment Failed"
+            echo "❌ Deployment Failed!"
         }
     }
 }

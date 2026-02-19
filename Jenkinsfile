@@ -8,43 +8,43 @@ pipeline {
 
     stages {
 
-        stage('Install Node.js') {
+        stage('Setup Environment') {
             steps {
                 sh '''
-                sudo apt update -y
-                sudo apt install -y curl
-                curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-                sudo apt install -y nodejs
+                set +e
+                echo "===== CHECKING NODE ====="
+                if ! command -v node >/dev/null 2>&1; then
+                    sudo apt update -y
+                    sudo apt install -y curl
+                    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+                    sudo apt install -y nodejs
+                fi
                 node -v
                 npm -v
-                '''
-            }
-        }
 
-        stage('Install PM2') {
-            steps {
-                sh '''
-                sudo npm install -g pm2
+                echo "===== CHECKING PM2 ====="
+                if ! command -v pm2 >/dev/null 2>&1; then
+                    sudo npm install -g pm2
+                fi
                 pm2 -v
                 '''
             }
         }
 
-        stage('Stop Old Application') {
+        stage('Deploy Application') {
             steps {
                 sh '''
-                pm2 delete ${APP_NAME} || true
-                '''
-            }
-        }
+                set +e
+                echo "===== STOPPING OLD APP ====="
+                pm2 delete ${APP_NAME}
 
-        stage('Start Application') {
-            steps {
-                sh '''
-                ls -la
-                pm2 start server.js --name ${APP_NAME}
-                pm2 save
-                pm2 startup systemd -u jenkins --hp /var/lib/jenkins
+                echo "===== STARTING NEW APP ====="
+                if [ -f server.js ]; then
+                    pm2 start server.js --name ${APP_NAME}
+                    pm2 save
+                else
+                    echo "server.js not found!"
+                fi
                 '''
             }
         }
@@ -52,8 +52,14 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh '''
+                set +e
+                echo "===== PM2 STATUS ====="
                 pm2 list
-                curl http://localhost:${APP_PORT} || true
+
+                sleep 3
+
+                echo "===== TESTING APP ====="
+                curl -I --max-time 5 http://localhost:${APP_PORT}
                 '''
             }
         }
@@ -61,10 +67,21 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployment Successful!"
+            echo ""
+            echo "======================================="
+            echo "🎉 BUILD SUCCESSFUL 🎉"
+            echo "Application is running on:"
+            echo "http://YOUR_PUBLIC_IP:3000"
+            echo "======================================="
         }
+
         failure {
-            echo "❌ Deployment Failed!"
+            echo ""
+            echo "❌ BUILD FAILED"
+        }
+
+        always {
+            echo "===== PIPELINE FINISHED ====="
         }
     }
 }

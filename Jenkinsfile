@@ -8,21 +8,13 @@ pipeline {
 
     stages {
 
-        stage('Clean Workspace') {
-            steps {
-                deleteDir()
-            }
-        }
-
         stage('Install Node.js') {
             steps {
                 sh '''
                 sudo apt update -y
                 sudo apt install -y curl
-
-                curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+                curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
                 sudo apt install -y nodejs
-
                 node -v
                 npm -v
                 '''
@@ -49,6 +41,7 @@ pipeline {
         stage('Start Application') {
             steps {
                 sh '''
+                ls -la
                 pm2 start server.js --name ${APP_NAME}
                 pm2 save
                 pm2 startup systemd -u jenkins --hp /var/lib/jenkins

@@ -7,39 +7,27 @@ pipeline {
 
     stages {
 
-        stage('Install Git If Missing') {
+        stage('Install NodeJS') {
             steps {
                 sh '''
-                if ! command -v git >/dev/null 2>&1; then
-                    sudo apt update
-                    sudo apt install -y git
-                fi
+                echo "Installing NodeJS..."
+                curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+                sudo apt-get update
+                sudo apt-get install -y nodejs
                 '''
             }
         }
 
-        stage('Install NodeJS If Missing') {
+        stage('Install PM2') {
             steps {
                 sh '''
-                if ! command -v node >/dev/null 2>&1; then
-                    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-                    sudo apt install -y nodejs
-                fi
+                echo "Installing PM2..."
+                sudo npm install -g pm2
                 '''
             }
         }
 
-        stage('Install PM2 If Missing') {
-            steps {
-                sh '''
-                if ! command -v pm2 >/dev/null 2>&1; then
-                    sudo npm install -g pm2
-                fi
-                '''
-            }
-        }
-
-        stage('Stop Old App') {
+        stage('Stop Previous App') {
             steps {
                 sh '''
                 pm2 delete $APP_NAME || true
@@ -47,7 +35,7 @@ pipeline {
             }
         }
 
-        stage('Start App') {
+        stage('Start Application') {
             steps {
                 sh '''
                 pm2 start server.js --name $APP_NAME
@@ -56,7 +44,7 @@ pipeline {
             }
         }
 
-        stage('Verify Running') {
+        stage('Verify Deployment') {
             steps {
                 sh '''
                 sleep 3
